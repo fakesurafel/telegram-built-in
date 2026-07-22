@@ -8,7 +8,7 @@ RUN apk add --no-cache python3 py3-pip make g++ openssl-dev libffi-dev
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml* package-lock.json* yarn.lock* ./
 
 # Install Node dependencies
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
