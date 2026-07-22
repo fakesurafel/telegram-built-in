@@ -34,8 +34,8 @@ class LiteChatRepository(
                 .addInterceptor(HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BODY
                 })
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(15, TimeUnit.SECONDS)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(20, TimeUnit.SECONDS)
                 .build()
 
             val moshi = Moshi.Builder()
@@ -58,18 +58,8 @@ class LiteChatRepository(
         apiId: String,
         apiHash: String,
         phone: String,
-        useSandbox: Boolean,
         customUrl: String
     ): Result<String> {
-        if (useSandbox) {
-            delay(1200) // Simulate network delay
-            return if (phone.isBlank() || apiId.isBlank() || apiHash.isBlank()) {
-                Result.failure(Exception("All configuration fields are required."))
-            } else {
-                Result.success("code_sent")
-            }
-        }
-
         return try {
             rebuildApiService(customUrl)
             val service = apiService ?: throw Exception("API Service not initialized")
@@ -96,37 +86,8 @@ class LiteChatRepository(
         phone: String,
         code: String,
         password: String?,
-        useSandbox: Boolean,
         customUrl: String
     ): Result<VerifyResult> {
-        if (useSandbox) {
-            delay(1200)
-            if (code != "12345" && code != "77777") {
-                return Result.failure(Exception("Incorrect Telegram authorization code. Try '12345'."))
-            }
-            // If we require password
-            if (password.isNullOrBlank()) {
-                // Let's pretend 2FA password is required for test phone numbers ending in 9 or 0, or just always prompt to show off the feature!
-                // To keep it fully interactive, let's prompt for password if none is provided.
-                return Result.success(VerifyResult.RequiresPassword)
-            } else if (password != "password" && password != "admin") {
-                return Result.failure(Exception("Invalid 2FA password. Try 'password'."))
-            }
-
-            // Generate a secure string session
-            val mockSessionString = "1BPhvYswBu3vYq8Yv..."
-            val session = SavedSession(
-                phone = phone,
-                apiId = apiId,
-                apiHash = apiHash,
-                sessionString = mockSessionString,
-                isActive = true
-            )
-            sessionDao.deactivateAllSessions()
-            sessionDao.insertSession(session)
-            return Result.success(VerifyResult.Success(mockSessionString))
-        }
-
         return try {
             rebuildApiService(customUrl)
             val service = apiService ?: throw Exception("API Service not initialized")
@@ -163,26 +124,32 @@ class LiteChatRepository(
         }
     }
 
+    suspend fun loginWithSessionKey(
+        apiId: String,
+        apiHash: String,
+        phone: String,
+        sessionString: String
+    ): Result<Unit> {
+        return try {
+            val session = SavedSession(
+                phone = phone,
+                apiId = apiId,
+                apiHash = apiHash,
+                sessionString = sessionString,
+                isActive = true
+            )
+            sessionDao.deactivateAllSessions()
+            sessionDao.insertSession(session)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun fetchChats(
         session: SavedSession,
-        useSandbox: Boolean,
         customUrl: String
     ): Result<List<SavedChat>> {
-        if (useSandbox) {
-            delay(1000)
-            val mockChats = listOf(
-                SavedChat(1, "Pavel Durov", "durov", "Private", 1, "Welcome to LiteChat! Secure, fast, and local.", System.currentTimeMillis()),
-                SavedChat(2, "Mom ❤️", "No username", "+1 (555) 234-5678", 0, "Make sure you drink enough water and rest!", System.currentTimeMillis() - 1000 * 60 * 5),
-                SavedChat(3, "Sarah Jenkins", "sarah_j", "+1 (555) 987-6543", 3, "Did you finish the Jetpack Compose animations?", System.currentTimeMillis() - 1000 * 60 * 30),
-                SavedChat(4, "Alex Mercer", "alex_m", "+44 7911 123456", 0, "Let's grab a coffee later. I have some ideas.", System.currentTimeMillis() - 1000 * 60 * 120),
-                SavedChat(5, "Design Lead", "art_director", "Private", 0, "The brand assets look perfect! Keep it up.", System.currentTimeMillis() - 1000 * 60 * 600),
-                SavedChat(6, "Alice Smith", "alice_s", "+1 (555) 443-2211", 0, "Perfect, see you tomorrow!", System.currentTimeMillis() - 1000 * 60 * 1400)
-            )
-            chatDao.clearChats()
-            chatDao.insertChats(mockChats)
-            return Result.success(mockChats)
-        }
-
         return try {
             rebuildApiService(customUrl)
             val service = apiService ?: throw Exception("API Service not initialized")

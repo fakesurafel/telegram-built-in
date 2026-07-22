@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
 
 enum class LoginStep {
     ENTER_CREDENTIALS,
-    ENTER_CODE
+    ENTER_CODE,
+    SESSION_KEY
 }
 
 class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel() {
@@ -46,10 +47,10 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     private val _password = MutableStateFlow("")
     val password = _password.asStateFlow()
 
-    private val _useSandbox = MutableStateFlow(true) // Default to true for smooth instant demo
-    val useSandbox = _useSandbox.asStateFlow()
+    private val _sessionKey = MutableStateFlow("")
+    val sessionKey = _sessionKey.asStateFlow()
 
-    private val _customBaseUrl = MutableStateFlow("http://10.0.2.2:8000")
+    private val _customBaseUrl = MutableStateFlow("https://your-telegram-backend.com") // Default to a placeholder live URL
     val customBaseUrl = _customBaseUrl.asStateFlow()
 
     // Loading & Error States
@@ -76,8 +77,9 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     fun onPhoneChanged(value: String) { _phone.value = value }
     fun onCodeChanged(value: String) { _code.value = value }
     fun onPasswordChanged(value: String) { _password.value = value }
-    fun onSandboxToggled(value: Boolean) { _useSandbox.value = value }
+    fun onSessionKeyChanged(value: String) { _sessionKey.value = value }
     fun onBaseUrlChanged(value: String) { _customBaseUrl.value = value }
+    fun setLoginStep(step: LoginStep) { _loginStep.value = step }
     fun clearError() { _error.value = null }
 
     fun resetStep() {
@@ -85,6 +87,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
         _requiresPassword.value = false
         _code.value = ""
         _password.value = ""
+        _sessionKey.value = ""
         _error.value = null
     }
 
@@ -102,7 +105,6 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                 apiId = _apiId.value.trim(),
                 apiHash = _apiHash.value.trim(),
                 phone = _phone.value.trim(),
-                useSandbox = _useSandbox.value,
                 customUrl = _customBaseUrl.value.trim()
             )
 
@@ -134,7 +136,6 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                 phone = _phone.value.trim(),
                 code = _code.value.trim(),
                 password = _password.value.trim().ifBlank { null },
-                useSandbox = _useSandbox.value,
                 customUrl = _customBaseUrl.value.trim()
             )
 
@@ -150,13 +151,43 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                             _requiresPassword.value = false
                             _code.value = ""
                             _password.value = ""
-                            // Pre-fetch chats automatically on login success
                             fetchChats()
                         }
                     }
                 },
                 onFailure = {
                     _error.value = it.localizedMessage ?: "Verification failed"
+                }
+            )
+            _isVerifyingCode.value = false
+        }
+    }
+
+    fun loginWithSessionKey() {
+        if (_apiId.value.isBlank() || _apiHash.value.isBlank() || _phone.value.isBlank() || _sessionKey.value.isBlank()) {
+            _error.value = "All fields including Session Key are required."
+            return
+        }
+
+        viewModelScope.launch {
+            _isVerifyingCode.value = true
+            _error.value = null
+
+            val result = repository.loginWithSessionKey(
+                apiId = _apiId.value.trim(),
+                apiHash = _apiHash.value.trim(),
+                phone = _phone.value.trim(),
+                sessionString = _sessionKey.value.trim()
+            )
+
+            result.fold(
+                onSuccess = {
+                    _loginStep.value = LoginStep.ENTER_CREDENTIALS
+                    _sessionKey.value = ""
+                    fetchChats()
+                },
+                onFailure = {
+                    _error.value = it.localizedMessage ?: "Session key login failed"
                 }
             )
             _isVerifyingCode.value = false
@@ -171,13 +202,12 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
             
             val result = repository.fetchChats(
                 session = session,
-                useSandbox = _useSandbox.value,
                 customUrl = _customBaseUrl.value.trim()
             )
 
             result.fold(
                 onSuccess = {
-                    // Cached automatically inside DB, Flow will stream update
+                    // Cached automatically
                 },
                 onFailure = {
                     _error.value = it.localizedMessage ?: "Failed to fetch chats"
@@ -197,7 +227,6 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     fun selectSession(phone: String) {
         viewModelScope.launch {
             repository.selectSession(phone)
-            // Pre-fetch chats automatically on switching sessions
             fetchChats()
         }
     }
