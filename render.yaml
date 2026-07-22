@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: litechat-backend
+    env: docker
+    repo: https://github.com/fakesurafel/telegram-built-in
+    branch: main
+    
+    # Build configuration
+    dockerfilePath: ./Dockerfile
+    
+    # Port configuration
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: NODE_ENV
+        value: production
+    
+    # Resource configuration
+    plan: free  # Change to 'standard' for production
+    
+    # Auto-deploy on push
+    autoDeploy: true
+    
+    # Health check
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    
+    # Timeout
+    maxShutdownDelay: 30
