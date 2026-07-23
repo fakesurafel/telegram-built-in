@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 
-const app = express();
+const app: express.Express = express();
 app.use(express.json());
 
 // In-memory session store for pending clients
@@ -41,7 +41,7 @@ async function healthCheckBridge(): Promise<void> {
 // Start FastAPI bridge subprocess
 function startFastApiBridge(): Promise<void> {
   return new Promise((resolve, reject) => {
-    const pythonScript = path.join(process.cwd(), 'server', 'telegram_bridge.py');
+    const pythonScript = path.join(__dirname, 'telegram_bridge.py');
     
     fastApiProcess = spawn('python3', [pythonScript], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -242,7 +242,7 @@ app.post('/api/send-code', async (req: Request, res: Response) => {
       body: JSON.stringify({ api_id, api_hash, phone })
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json(data);
@@ -299,7 +299,7 @@ app.post('/api/verify-code', async (req: Request, res: Response) => {
       })
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json(data);
@@ -318,7 +318,7 @@ app.post('/api/verify-code', async (req: Request, res: Response) => {
 
     res.json({
       status: 'success',
-      session_string: data.session_string,
+      session_string: data.session_string || null,
       api_id: pendingSession.apiId,
       api_hash: pendingSession.apiHash,
       message: 'Successfully authenticated'
@@ -349,7 +349,7 @@ app.post('/api/chats', async (req: Request, res: Response) => {
       body: JSON.stringify({ session_string, api_id, api_hash })
     });
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     if (!response.ok) {
       return res.status(response.status).json(data);
