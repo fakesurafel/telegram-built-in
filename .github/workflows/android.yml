@@ -23,11 +23,51 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Ensure google-services.json Exists
+        run: |
+          if [ ! -f "app/google-services.json" ]; then
+            echo "Creating fallback app/google-services.json for build..."
+            cat << 'EOF' > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "litechat-ai-studio",
+              "storage_bucket": "litechat-ai-studio.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
+                  "android_client_info": {
+                    "package_name": "com.aistudio.litechat.tghyqb"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyKeyForLiteChatApplet12345"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+
       - name: Restore Keystore from Base64
         run: |
           if [ -f "debug.keystore.base64" ]; then
             echo "Decoding debug.keystore.base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
+            base64 -d debug.keystore.base64 > debug.keystore || base64 --decode debug.keystore.base64 > debug.keystore
+          elif [ ! -f "debug.keystore" ]; then
+            echo "Generating fallback debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
       - name: Grant Execute Permission for Gradlew
