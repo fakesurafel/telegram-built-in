@@ -64,12 +64,6 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     private val _sessionKeyInput = MutableStateFlow("")
     val sessionKeyInput = _sessionKeyInput.asStateFlow()
 
-    private val _useSandbox = MutableStateFlow(true) // Default to true for smooth instant demo
-    val useSandbox = _useSandbox.asStateFlow()
-
-    private val _customBaseUrl = MutableStateFlow("http://10.0.2.2:8000")
-    val customBaseUrl = _customBaseUrl.asStateFlow()
-
     // Telegram Direct Network & Connection Settings
     private val _proxyType = MutableStateFlow(ProxyType.DIRECT)
     val proxyType = _proxyType.asStateFlow()
@@ -121,8 +115,6 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     fun onCodeChanged(value: String) { _code.value = value }
     fun onPasswordChanged(value: String) { _password.value = value }
     fun onSessionKeyInputChanged(value: String) { _sessionKeyInput.value = value }
-    fun onSandboxToggled(value: Boolean) { _useSandbox.value = value }
-    fun onBaseUrlChanged(value: String) { _customBaseUrl.value = value }
     fun onProxyTypeChanged(type: ProxyType) { _proxyType.value = type }
     fun onProxyHostChanged(host: String) { _proxyHost.value = host }
     fun onProxyPortChanged(port: String) { _proxyPort.value = port }
@@ -159,7 +151,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
 
     fun sendAuthenticationCode() {
         if (_apiId.value.isBlank() || _apiHash.value.isBlank() || _phone.value.isBlank()) {
-            _error.value = "Please fill in all configuration fields."
+            _error.value = "Please fill in all configuration fields (API ID, API Hash, Phone)."
             return
         }
 
@@ -170,9 +162,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
             val result = repository.sendCode(
                 apiId = _apiId.value.trim(),
                 apiHash = _apiHash.value.trim(),
-                phone = _phone.value.trim(),
-                useSandbox = _useSandbox.value,
-                customUrl = _customBaseUrl.value.trim()
+                phone = _phone.value.trim()
             )
 
             result.fold(
@@ -180,7 +170,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                     _loginStep.value = LoginStep.ENTER_CODE
                 },
                 onFailure = {
-                    _error.value = it.localizedMessage ?: "Failed to send code request"
+                    _error.value = it.localizedMessage ?: "Failed to send verification code"
                 }
             )
             _isSendingCode.value = false
@@ -189,7 +179,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
 
     fun verifyAuthenticationCode() {
         if (_code.value.isBlank()) {
-            _error.value = "Please enter the Telegram authentication code."
+            _error.value = "Please enter the Telegram authorization code."
             return
         }
 
@@ -202,9 +192,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                 apiHash = _apiHash.value.trim(),
                 phone = _phone.value.trim(),
                 code = _code.value.trim(),
-                password = _password.value.trim().ifBlank { null },
-                useSandbox = _useSandbox.value,
-                customUrl = _customBaseUrl.value.trim()
+                password = _password.value.trim().ifBlank { null }
             )
 
             result.fold(
@@ -272,9 +260,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
             _error.value = null
             
             val result = repository.fetchChats(
-                session = session,
-                useSandbox = _useSandbox.value,
-                customUrl = _customBaseUrl.value.trim()
+                session = session
             )
 
             result.fold(

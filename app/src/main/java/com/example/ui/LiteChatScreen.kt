@@ -75,8 +75,6 @@ fun LiteChatScreen(
     val code by viewModel.code.collectAsStateWithLifecycle()
     val password by viewModel.password.collectAsStateWithLifecycle()
     val sessionKeyInput by viewModel.sessionKeyInput.collectAsStateWithLifecycle()
-    val useSandbox by viewModel.useSandbox.collectAsStateWithLifecycle()
-    val customBaseUrl by viewModel.customBaseUrl.collectAsStateWithLifecycle()
 
     val isSendingCode by viewModel.isSendingCode.collectAsStateWithLifecycle()
     val isVerifyingCode by viewModel.isVerifyingCode.collectAsStateWithLifecycle()
@@ -175,7 +173,7 @@ fun LiteChatScreen(
                         letterSpacing = (-0.5).sp
                     )
                     Text(
-                        text = if (useSandbox) "SANDBOX DASHBOARD" else "LIVE TELEGRAM CLIENT",
+                        text = "LIVE TELEGRAM CLIENT",
                         color = Indigo400,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -210,34 +208,35 @@ fun LiteChatScreen(
                     shape = RoundedCornerShape(16.dp),
                     border = BorderStroke(1.dp, Color(0xFFEF4444))
                 ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Error",
-                            tint = Rose400,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = error ?: "",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(
-                            onClick = { viewModel.clearError() },
-                            modifier = Modifier.size(24.dp)
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = Slate400,
-                                modifier = Modifier.size(14.dp)
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Error",
+                                tint = Rose400,
+                                modifier = Modifier.size(18.dp)
                             )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = error ?: "",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { viewModel.clearError() },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = Slate400,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -415,22 +414,7 @@ fun LiteChatScreen(
                                                         }
                                                     }
 
-                                                    if (useSandbox) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .background(Indigo600.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
-                                                                .padding(10.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = "💡 Protip: In local Sandbox mode, any input works instantly. Just click 'Send' to proceed.",
-                                                                fontSize = 11.sp,
-                                                                color = Indigo400,
-                                                                textAlign = TextAlign.Center,
-                                                                modifier = Modifier.fillMaxWidth()
-                                                            )
-                                                        }
-                                                    }
+
                                                     } else {
                                                         // Session Key String Direct Import
                                                         OutlinedTextField(
@@ -613,26 +597,7 @@ fun LiteChatScreen(
                                                         }
                                                     }
 
-                                                    if (useSandbox) {
-                                                        Column(
-                                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .background(Indigo600.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
-                                                                .padding(10.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = "🔑 Standard sandbox OTP code is '12345'.",
-                                                                fontSize = 11.sp,
-                                                                color = Indigo400
-                                                            )
-                                                            Text(
-                                                                text = "🔑 Standard 2-Step Cloud Password is 'password'.",
-                                                                fontSize = 11.sp,
-                                                                color = Indigo400
-                                                            )
-                                                        }
-                                                    }
+
                                                 }
                                             }
                                         }
@@ -1184,8 +1149,8 @@ fun LiteChatScreen(
                                                 Text("${cachedChats.size}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                             }
                                             Column {
-                                                Text("Sandbox Mode", color = Slate500, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                                Text(if (useSandbox) "ACTIVE" else "OFFLINE", color = if (useSandbox) Indigo400 else Color(0xFF10B981), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                Text("Client Mode", color = Slate500, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                Text("STANDALONE", color = Color(0xFF10B981), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -1313,44 +1278,6 @@ fun LiteChatScreen(
                                     }
 
                                     Divider(color = Slate800.copy(alpha = 0.5f))
-
-                                    // Local Sandbox Mode Toggle
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Slate950, RoundedCornerShape(16.dp))
-                                            .border(1.dp, Slate800, RoundedCornerShape(16.dp))
-                                            .padding(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Local Sandbox Mode",
-                                                color = Color.White,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp
-                                            )
-                                            Text(
-                                                text = "Simulate all OTP and authorization flows offline.",
-                                                color = Slate400,
-                                                fontSize = 11.sp,
-                                                modifier = Modifier.padding(top = 2.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Switch(
-                                            checked = useSandbox,
-                                            onCheckedChange = { viewModel.onSandboxToggled(it) },
-                                            colors = SwitchDefaults.colors(
-                                                checkedThumbColor = Color.White,
-                                                checkedTrackColor = Indigo600,
-                                                uncheckedThumbColor = Slate400,
-                                                uncheckedTrackColor = Slate800
-                                            ),
-                                            modifier = Modifier.testTag("sandbox_toggle")
-                                        )
-                                    }
 
                                     // Connection Mode Selector
                                     Column {
@@ -1577,37 +1504,6 @@ fun LiteChatScreen(
                                         }
                                     }
 
-                                    // FastAPI Connection Server URL
-                                    Column {
-                                        Text(
-                                            text = "FASTAPI BACKEND BASE URL",
-                                            color = Slate400,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 10.sp,
-                                            letterSpacing = 1.sp,
-                                            modifier = Modifier.padding(bottom = 6.dp)
-                                        )
-                                        OutlinedTextField(
-                                            value = customBaseUrl,
-                                            onValueChange = { viewModel.onBaseUrlChanged(it) },
-                                            placeholder = { Text("e.g., http://10.0.2.2:8000") },
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedBorderColor = Indigo500,
-                                                unfocusedBorderColor = Slate700,
-                                                focusedLabelColor = Indigo400,
-                                                unfocusedLabelColor = Slate400,
-                                                focusedTextColor = Color.White,
-                                                unfocusedTextColor = Color.White,
-                                                disabledTextColor = Slate500,
-                                                disabledBorderColor = Slate800
-                                            ),
-                                            enabled = !useSandbox,
-                                            singleLine = true,
-                                            modifier = Modifier.fillMaxWidth().testTag("backend_url_input"),
-                                            shape = RoundedCornerShape(14.dp)
-                                        )
-                                    }
-
                                     // Terminal Logs Console
                                     Column(
                                         modifier = Modifier
@@ -1625,11 +1521,7 @@ fun LiteChatScreen(
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = if (useSandbox) {
-                                                "[SYSTEM] Local Sandbox Mode Active\n[PROXY] ${proxyType.name} -> $proxyHost:$proxyPort\n[INFO] Simulated latency: ${proxyPingMs ?: 0}ms\n[STATUS] Direct socket handshake simulated successfully"
-                                            } else {
-                                                "[SYSTEM] Live Network Active\n[PROXY] ${proxyType.name} -> $proxyHost:$proxyPort\n[CONNECT] Base URL: $customBaseUrl\n[PING] Latency response: ${proxyPingMs ?: "pinging..."}ms"
-                                            },
+                                            text = "[SYSTEM] Direct Client Active\n[PROXY] ${proxyType.name} -> ${if (proxyHost.isBlank()) "Direct Network" else "$proxyHost:$proxyPort"}\n[STATUS] Handshake ready - Direct connection",
                                             color = Color(0xFF10B981),
                                             fontSize = 10.sp,
                                             fontFamily = FontFamily.Monospace,
