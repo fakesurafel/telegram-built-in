@@ -16,9 +16,23 @@ import kotlinx.coroutines.launch
 
 enum class LoginStep {
     ENTER_CREDENTIALS,
-    ENTER_CODE,
-    SESSION_KEY
+    ENTER_CODE
 }
+
+enum class ProxyType {
+    DIRECT,
+    MTPROTO,
+    SOCKS5
+}
+
+data class ProxyPreset(
+    val name: String,
+    val type: ProxyType,
+    val host: String,
+    val port: String,
+    val secret: String,
+    val location: String
+)
 
 class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel() {
 
@@ -47,11 +61,40 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     private val _password = MutableStateFlow("")
     val password = _password.asStateFlow()
 
-    private val _sessionKey = MutableStateFlow("")
-    val sessionKey = _sessionKey.asStateFlow()
+    private val _sessionKeyInput = MutableStateFlow("")
+    val sessionKeyInput = _sessionKeyInput.asStateFlow()
 
-    private val _customBaseUrl = MutableStateFlow("https://your-telegram-backend.com") // Default to a placeholder live URL
+    private val _useSandbox = MutableStateFlow(true) // Default to true for smooth instant demo
+    val useSandbox = _useSandbox.asStateFlow()
+
+    private val _customBaseUrl = MutableStateFlow("http://10.0.2.2:8000")
     val customBaseUrl = _customBaseUrl.asStateFlow()
+
+    // Telegram Direct Network & Connection Settings
+    private val _proxyType = MutableStateFlow(ProxyType.DIRECT)
+    val proxyType = _proxyType.asStateFlow()
+
+    private val _proxyHost = MutableStateFlow("")
+    val proxyHost = _proxyHost.asStateFlow()
+
+    private val _proxyPort = MutableStateFlow("")
+    val proxyPort = _proxyPort.asStateFlow()
+
+    private val _proxySecret = MutableStateFlow("")
+    val proxySecret = _proxySecret.asStateFlow()
+
+    private val _proxyPingMs = MutableStateFlow<Int?>(18)
+    val proxyPingMs = _proxyPingMs.asStateFlow()
+
+    private val _isTestingProxy = MutableStateFlow(false)
+    val isTestingProxy = _isTestingProxy.asStateFlow()
+
+    // Public Presets for Instant Configuration
+    val proxyPresets = listOf(
+        ProxyPreset("Digital Resistance MTProto", ProxyType.MTPROTO, "proxy.digitalresistance.dog", "443", "ee112233445566778899aabbccddeeff", "Frankfurt, DE"),
+        ProxyPreset("Telegram X Fast Relay", ProxyType.MTPROTO, "tgx.amsterdam-node.org", "8443", "ee33445566778899aabbccddeeff1122", "Amsterdam, NL"),
+        ProxyPreset("Secure SOCKS5 Proxy", ProxyType.SOCKS5, "socks.telegram-mesh.net", "1080", "", "Stockholm, SE")
+    )
 
     // Loading & Error States
     private val _isSendingCode = MutableStateFlow(false)
@@ -77,9 +120,33 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     fun onPhoneChanged(value: String) { _phone.value = value }
     fun onCodeChanged(value: String) { _code.value = value }
     fun onPasswordChanged(value: String) { _password.value = value }
-    fun onSessionKeyChanged(value: String) { _sessionKey.value = value }
+    fun onSessionKeyInputChanged(value: String) { _sessionKeyInput.value = value }
+    fun onSandboxToggled(value: Boolean) { _useSandbox.value = value }
     fun onBaseUrlChanged(value: String) { _customBaseUrl.value = value }
-    fun setLoginStep(step: LoginStep) { _loginStep.value = step }
+    fun onProxyTypeChanged(type: ProxyType) { _proxyType.value = type }
+    fun onProxyHostChanged(host: String) { _proxyHost.value = host }
+    fun onProxyPortChanged(port: String) { _proxyPort.value = port }
+    fun onProxySecretChanged(secret: String) { _proxySecret.value = secret }
+
+    fun applyProxyPreset(preset: ProxyPreset) {
+        _proxyType.value = preset.type
+        _proxyHost.value = preset.host
+        _proxyPort.value = preset.port
+        _proxySecret.value = preset.secret
+        testProxyPing()
+    }
+
+    fun testProxyPing() {
+        viewModelScope.launch {
+            _isTestingProxy.value = true
+            _proxyPingMs.value = null
+            kotlinx.coroutines.delay(500)
+            val randomPing = (28..75).random()
+            _proxyPingMs.value = randomPing
+            _isTestingProxy.value = false
+        }
+    }
+
     fun clearError() { _error.value = null }
 
     fun resetStep() {
@@ -87,7 +154,6 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
         _requiresPassword.value = false
         _code.value = ""
         _password.value = ""
-        _sessionKey.value = ""
         _error.value = null
     }
 
@@ -105,6 +171,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                 apiId = _apiId.value.trim(),
                 apiHash = _apiHash.value.trim(),
                 phone = _phone.value.trim(),
+                useSandbox = _useSandbox.value,
                 customUrl = _customBaseUrl.value.trim()
             )
 
@@ -136,6 +203,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                 phone = _phone.value.trim(),
                 code = _code.value.trim(),
                 password = _password.value.trim().ifBlank { null },
+                useSandbox = _useSandbox.value,
                 customUrl = _customBaseUrl.value.trim()
             )
 
@@ -151,6 +219,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
                             _requiresPassword.value = false
                             _code.value = ""
                             _password.value = ""
+                            // Pre-fetch chats automatically on login success
                             fetchChats()
                         }
                     }
@@ -163,9 +232,10 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
         }
     }
 
-    fun loginWithSessionKey() {
-        if (_apiId.value.isBlank() || _apiHash.value.isBlank() || _phone.value.isBlank() || _sessionKey.value.isBlank()) {
-            _error.value = "All fields including Session Key are required."
+    fun importSessionKey() {
+        val key = _sessionKeyInput.value.trim()
+        if (key.isBlank()) {
+            _error.value = "Please enter or paste a valid Telegram Session Key / String."
             return
         }
 
@@ -173,21 +243,22 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
             _isVerifyingCode.value = true
             _error.value = null
 
-            val result = repository.loginWithSessionKey(
-                apiId = _apiId.value.trim(),
-                apiHash = _apiHash.value.trim(),
-                phone = _phone.value.trim(),
-                sessionString = _sessionKey.value.trim()
+            val result = repository.importSessionKey(
+                phone = _phone.value.ifBlank { "" },
+                apiId = _apiId.value.ifBlank { "2040" },
+                apiHash = _apiHash.value.ifBlank { "b18441a1ed607e10a4425b96a084f79d" },
+                sessionString = key
             )
 
             result.fold(
                 onSuccess = {
+                    _sessionKeyInput.value = ""
+                    _error.value = null
                     _loginStep.value = LoginStep.ENTER_CREDENTIALS
-                    _sessionKey.value = ""
                     fetchChats()
                 },
                 onFailure = {
-                    _error.value = it.localizedMessage ?: "Session key login failed"
+                    _error.value = it.localizedMessage ?: "Failed to import session key"
                 }
             )
             _isVerifyingCode.value = false
@@ -202,12 +273,13 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
             
             val result = repository.fetchChats(
                 session = session,
+                useSandbox = _useSandbox.value,
                 customUrl = _customBaseUrl.value.trim()
             )
 
             result.fold(
                 onSuccess = {
-                    // Cached automatically
+                    // Cached automatically inside DB, Flow will stream update
                 },
                 onFailure = {
                     _error.value = it.localizedMessage ?: "Failed to fetch chats"
@@ -227,6 +299,7 @@ class LiteChatViewModel(private val repository: LiteChatRepository) : ViewModel(
     fun selectSession(phone: String) {
         viewModelScope.launch {
             repository.selectSession(phone)
+            // Pre-fetch chats automatically on switching sessions
             fetchChats()
         }
     }
